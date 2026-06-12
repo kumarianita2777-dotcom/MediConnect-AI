@@ -2,6 +2,29 @@ import streamlit as st
 import pandas as pd
 import pickle
 import sklearn
+import sqlite3
+
+# --- DATABASE SETUP ---
+# Database file aur table create karne ka function
+def create_table():
+    conn = sqlite3.connect('patients.db')
+    c = conn.cursor()
+    # SQL query: Table banane ke liye
+    c.execute('CREATE TABLE IF NOT EXISTS patient_records(Age INTEGER, Glucose INTEGER, BloodPressure INTEGER, BMI REAL, Pregnancies INTEGER, SkinThickness INTEGER, Insulin INTEGER, DPF REAL, Result TEXT)')
+    conn.commit()
+    conn.close()
+
+# Database mein naya data insert karne ka function
+def add_data(age, glucose, bp, bmi, pregnancies, skin, insulin, dpf, result):
+    conn = sqlite3.connect('patients.db')
+    c = conn.cursor()
+    # SQL query: Data table mein dalne ke liye
+    c.execute('INSERT INTO patient_records VALUES (?,?,?,?,?,?,?,?,?)', (age, glucose, bp, bmi, pregnancies, skin, insulin, dpf, result))
+    conn.commit()
+    conn.close()
+
+# App shuru hote hi database setup ho jayega
+create_table()
 
 # 1. Page Configuration
 st.set_page_config(page_title="MediConnect AI", page_icon="🏥", layout="wide")
@@ -19,10 +42,9 @@ except Exception as e:
     st.error(f"⚠️ Model load nahi ho paya. Error: {e}")
     model_loaded = False
 
-# --- SECTION 1: INPUT AREA (Upar wala hissa) ---
+# --- SECTION 1: INPUT AREA ---
 st.subheader("📋 Step 1: Patient Details Enter Karein")
 
-# Inputs ko 2 rows mein arrange kar rahe hain taaki screen zyada lambi na ho
 row1_col1, row1_col2 = st.columns(2)
 with row1_col1:
     age = st.slider("Patient Age (Umar)", 1, 100, 25)
@@ -38,10 +60,9 @@ with row1_col2:
 
 st.markdown("---")
 
-# --- SECTION 2: HEALTH SNAPSHOT (Niche wala hissa) ---
+# --- SECTION 2: HEALTH SNAPSHOT ---
 st.subheader("📊 Step 2: Patient Health Snapshot")
 
-# Metrics ko 4 columns mein ek row mein dikha rahe hain (Horizontal Row)
 m1, m2, m3, m4 = st.columns(4)
 m1.metric(label="🩸 Glucose", value=f"{glucose} mg/dL")
 m2.metric(label="⚖️ BMI", value=f"{bmi}")
@@ -50,10 +71,9 @@ m4.metric(label="🩺 BP", value=f"{blood_pressure}")
 
 st.markdown("---")
 
-# --- SECTION 3: PREDICTION RESULT (Sabse niche) ---
+# --- SECTION 3: PREDICTION & DATA SAVING ---
 if st.button("AI Prediction Check Karein 🚀", use_container_width=True):
     if model_loaded:
-        # Data prepare karna
         input_data = pd.DataFrame({
             'Pregnancies': [pregnancies], 'Glucose': [glucose], 'BloodPressure': [blood_pressure],
             'SkinThickness': [skin_thickness], 'Insulin': [insulin], 'BMI': [bmi],
@@ -62,8 +82,9 @@ if st.button("AI Prediction Check Karein 🚀", use_container_width=True):
         
         prediction = model.predict(input_data)
         
-        # Result Show karna
+        # Result set karna aur Data Save karna
         if prediction[0] == 1:
+            result_status = "High Risk"
             st.error("🚨 **High Risk Detected:** Is patient ko Diabetes hone ke chances zyada hain.")
             st.warning("""
             **💡 Personalized Preventive Suggestions:**
@@ -72,11 +93,30 @@ if st.button("AI Prediction Check Karein 🚀", use_container_width=True):
             * Rozana workout/walking shuru karein.
             """)
         else:
+            result_status = "Healthy"
             st.success("✅ **Healthy:** Patient bilkul theek hai. Diabetes ka koi bada risk nahi hai.")
             st.info("""
             **💡 Personalized Preventive Suggestions:**
             * Balanced diet aur healthy lifestyle maintain rakhein.
             * Har 6 mahine mein regular sugar test karwayein.
             """)
+            
+        # Database mein Patient ki detail SAVE kar rahe hain
+        add_data(age, glucose, blood_pressure, bmi, pregnancies, skin_thickness, insulin, dpf, result_status)
+        st.toast("💾 Patient Data successfully Database mein save ho gaya hai!", icon='✅')
+
     else:
         st.warning("Model load nahi hua hai, kripya file check karein.")
+
+st.markdown("---")
+
+# --- SECTION 4: VIEW DATABASE ---
+st.subheader("📁 Digital Register (Patient Database)")
+st.markdown("Yahan aap purane sabhi patients ka saved data dekh sakti hain:")
+
+if st.checkbox("Database Table Dekhein"):
+    conn = sqlite3.connect('patients.db')
+    # SQL query se saara data utha rahe hain
+    df_db = pd.read_sql_query("SELECT * FROM patient_records", conn)
+    st.dataframe(df_db, use_container_width=True)
+    conn.close()

@@ -51,11 +51,10 @@ with row1_col1:
     bmi = st.slider("BMI (Body Mass Index)", 10.0, 60.0, 25.0)
 
 with row1_col2:
-     pregnancies = st.number_input("Number of Pregnancies", 0, 20, 0)
+    pregnancies = st.number_input("Number of Pregnancies", 0, 20, 0)
     skin_thickness = st.number_input("Skin Thickness (mm)", 0, 100, 20)
     insulin = st.number_input("Insulin Level (mu U/ml)", 0, 900, 30)
     dpf = st.number_input("Diabetes Pedigree Function", 0.0, 3.0, 0.5)
-
 st.markdown("---")
 
 # --- SECTION 2: HEALTH SNAPSHOT ---
